@@ -164,7 +164,7 @@ class Books(Report):
 
                 name = " ".join([invoice["FIRST_NAME"], invoice["LAST_NAME"]])
 
-                if "ORGANIZATION" in invoice:
+                if "ORGANIZATION" in invoice and invoice["ORGANIZATION"] != "":
 
                     name = "%s (%s)" % (invoice["ORGANIZATION"], name)
 
@@ -182,19 +182,15 @@ class Books(Report):
 
                         income_vats.append(vat_item["VAT_PERCENT"])
 
-                    vat_sum[vat_item["VAT_PERCENT"]] += round(
-                        vat_item["VAT_VALUE"],
-                        2
-                    )
-
+                    vat_sum[vat_item["VAT_PERCENT"]] += vat_item["VAT_VALUE"]
 
                 incomes.append({
                     "date": invoice["INVOICE_DATE"],
                     "paid_date": invoice["PAID_DATE"],
                     "name": name,
                     "title": invoice["INVOICE_TITLE"],
-                    "subtotal": round(invoice["SUB_TOTAL"], 2),
-                    "total": round(invoice["TOTAL"], 2),
+                    "subtotal": invoice["SUB_TOTAL"],
+                    "total": invoice["TOTAL"],
                     "vat": vat_sum,
                     "note": invoice["NOTE"]
                 })
@@ -207,7 +203,7 @@ class Books(Report):
 
                 }
 
-                for vat_item in invoice["VAT_ITEMS"]:
+                for vat_item in expense["VAT_ITEMS"]:
 
                     if vat_item["VAT_PERCENT"] not in vat_sum:
 
@@ -215,19 +211,21 @@ class Books(Report):
 
                     if vat_item["VAT_PERCENT"] not in expense_vats:
 
-                        expenses.append(vat_item["VAT_PERCENT"])
+                        expense_vats.append(vat_item["VAT_PERCENT"])
 
-                    vat_sum[vat_item["VAT_PERCENT"]] += vat_item["VAT_VALUE"]
+                    vat_sum[vat_item["VAT_PERCENT"]] += float(
+                        vat_item["VAT_VALUE"]
+                    )
 
                 expenses.append({
-                    "date": invoice["INVOICE_DATE"],
-                    "paid_date": invoice["PAID_DATE"],
-                    "name": invoice["ORGANIZATION"],
-                    "title": invoice["INVOICE_TITLE"],
-                    "subtotal": invoice["SUB_TOTAL"],
-                    "total": invoice["TOTAL"],
+                    "date": expense["INVOICE_DATE"],
+                    "paid_date": expense["PAID_DATE"],
+                    "name": expense["ORGANIZATION"],
+                    "title": "",
+                    "subtotal": float(expense["SUB_TOTAL"]),
+                    "total": float(expense["TOTAL"]),
                     "vat": vat_sum,
-                    "note": invoice["NOTE"]
+                    "note": expense["NOTE"]
                 })
 
         # Output report
@@ -236,39 +234,82 @@ class Books(Report):
 
         report = []
 
-        header = self.args.delimiter.join(
-            ["date", "paid_date", "name", "title"] +\
-            income_vats +\
-            ["subtotal", "total", "note"])
+        report_data = {
+            "INCOME": {
+                "data": incomes,
+                "vats": income_vats
+            },
+            "EXPENSES": {
+                "data": expenses,
+                "vats": expense_vats
+            }
+        }
 
-        report.append(header)
+        for key, data in report_data.iteritems():
 
-        for income in incomes:
+            report.append(key)
 
-            row = [
-                income["date"],
-                income["paid_date"],
-                income["name"],
-                income["title"]
+            header = self.args.delimiter.join(
+                ["date", "paid_date", "name", "title"] +
+                data["vats"] +
+                ["subtotal", "total", "note"]
+            )
+
+            report.append(header)
+
+            data_sum = {
+                "subtotal": 0,
+                "total": 0
+            }
+
+            for row in data["data"]:
+
+                columns = [
+                    row["date"],
+                    row["paid_date"],
+                    row["name"],
+                    row["title"]
+                ]
+
+                for vat in income_vats:
+
+                    if not vat in data_sum:
+                        data_sum[vat] = 0
+
+                    if vat in row["vat"]:
+
+                        data_sum[vat] += row["vat"][vat]
+                        columns.append(str(round(row["vat"][vat],2)))
+
+                    else:
+
+                        columns.append("0")
+
+                columns.append(str(round(row["subtotal"], 2)))
+                data_sum["subtotal"] += row["subtotal"]
+                columns.append(str(round(row["total"], 2)))
+                data_sum["total"] += row["total"]
+                columns.append(row["note"])
+
+                report.append(self.args.delimiter.join(columns))
+
+            sum_row = [
+                "",
+                "",
+                "",
+                ""
             ]
 
-            for vat in income_vats:
+            for vat in data["vats"]:
 
-                if vat in income["vat"]:
+                sum_row.append(str(round(data_sum[vat], 2)))
 
-                    row.append(str(income["vat"][vat]))
+            sum_row.append(str(round(data_sum["subtotal"], 2)))
+            sum_row.append(str(round(data_sum["total"], 2)))
+            sum_row.append("")
 
-                else:
+            report.append(self.args.delimiter.join(sum_row))
 
-                    row.append("0")
-
-            row.append(str(income["subtotal"]))
-            row.append(str(income["total"]))
-            row.append(income["note"])
-
-            report.append(self.args.delimiter.join(row))
-
-        report.append("")
-        report.append("EXPENSES")
+            report.append("")
 
         return report
