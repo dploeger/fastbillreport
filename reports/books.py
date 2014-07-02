@@ -3,7 +3,6 @@
 
 from reports import Report
 import re
-from datetime import date
 
 
 class Books(Report):
@@ -13,133 +12,15 @@ class Books(Report):
 
     special_args = True
 
-    scope = ""
+    want_csv = True
 
-    # The type of scope to report on
-
-    scope_value = ""
-
-    # The actual scope
-
-    def get_args(self, parser):
-
-        parser.add_argument(
-            "-s",
-            "--scope",
-            dest="scope",
-            default="month",
-            help="Scope for the report (month, quarter, year)"
-        )
-
-        parser.add_argument(
-            "-d",
-            "--scopevalue",
-            dest="scopevalue",
-            default="_now",
-            help="Value of scope (for example 20149, 20142, 2014"
-                 "for month/quarter/year scopes)"
-        )
-
-        parser.add_argument(
-            "-e",
-            "--delimiter",
-            dest="delimiter",
-            default=",",
-            help="CSV-Delimiter for report output"
-        )
-
-    def parse_args(self, args):
-        super(Books, self).parse_args(args)
-
-        if args.scope not in ["month", "quarter", "year"]:
-
-            self.logger.error("Invalid scope specified (%s)" % args.scope)
-
-            return False
-
-        else:
-
-            self.scope = args.scope
-
-        if self.args.scopevalue == "_now":
-
-            # Generate the current date
-
-            now = date.today()
-
-            if self.scope == "month":
-
-                self.scope_value = "%d%d" % (now.year, now.month)
-
-            elif self.scope == "quarter":
-
-                self.scope_value = "%d%d" % (now.year, int(now.month/4) + 1)
-
-            else:
-
-                self.scope_value = str(now.year)
-
-        else:
-
-            if (
-                self.scope == "month" and
-                    not re.match("^[\d]{5,6}$", self.args.scopevalue)
-            ) or (
-                self.scope == "quarter" and
-                    not re.match("^[\d]{5}$", self.args.scopevalue)
-            ) or (
-                self.scope == "year" and
-                    not re.match("^[\d]{4}$", self.args.scopevalue)
-            ):
-
-                self.logger.error(
-                    "Invalid scope value specified (%s) for "
-                    "scope (%s)" % (
-                        self.args.scopevale,
-                        self.scope
-                    )
-                )
-
-                return False
-
-            else:
-
-                self.scope_value = self.args.scopevalue
-
-        return True
+    want_scope = True
 
     def report(self):
 
         # Create scope filter
 
-        scope_filters = []
-
-        if self.scope == "year":
-
-            scope_filters.append({ "YEAR": self.scope_value })
-
-        elif self.scope == "month":
-
-            interpreted_scope = re.match("^([\d]{4})([\d]*)$", self.scope_value)
-
-            scope_filters.append({
-                "YEAR": interpreted_scope.group(1),
-                "MONTH": interpreted_scope.group(2)
-            })
-
-        elif self.scope == "quarter":
-
-            interpreted_scope = re.match("^([\d]{4})([\d])$", self.scope_value)
-
-            month_start = (int(interpreted_scope.group(2)) - 1) * 3 + 1
-            month_end = (int(interpreted_scope.group(2))) * 3 + 1
-
-            for month in range(month_start, month_end):
-
-                scope_filters.append({
-                    "YEAR": interpreted_scope.group(1),
-                    "MONTH": str(month)
-                })
+        scope_filters = self.get_scope_filters()
 
         # Get invoices of current scope
 
@@ -156,7 +37,7 @@ class Books(Report):
 
             for invoice in tmp["INVOICES"]:
 
-                if invoice["IS_CANCELED"] == 1:
+                if invoice["IS_CANCELED"] == "1":
 
                     # Skip canceled invoices
 
@@ -249,7 +130,7 @@ class Books(Report):
 
             report.append(key)
 
-            header = self.args.delimiter.join(
+            header = self.report_args["csv_delimiter"].join(
                 ["date", "paid_date", "name", "title"] +
                 data["vats"] +
                 ["subtotal", "total", "note"]
@@ -279,19 +160,19 @@ class Books(Report):
                     if vat in row["vat"]:
 
                         data_sum[vat] += row["vat"][vat]
-                        columns.append(str(round(row["vat"][vat],2)))
+                        columns.append(str(self.moneyfmt(row["vat"][vat])))
 
                     else:
 
                         columns.append("0")
 
-                columns.append(str(round(row["subtotal"], 2)))
+                columns.append(str(self.moneyfmt(row["subtotal"])))
                 data_sum["subtotal"] += row["subtotal"]
-                columns.append(str(round(row["total"], 2)))
+                columns.append(str(self.moneyfmt(row["total"])))
                 data_sum["total"] += row["total"]
                 columns.append(row["note"])
 
-                report.append(self.args.delimiter.join(columns))
+                report.append(self.report_args["csv_delimiter"].join(columns))
 
             sum_row = [
                 "",
@@ -302,13 +183,13 @@ class Books(Report):
 
             for vat in data["vats"]:
 
-                sum_row.append(str(round(data_sum[vat], 2)))
+                sum_row.append(str(self.moneyfmt(data_sum[vat])))
 
-            sum_row.append(str(round(data_sum["subtotal"], 2)))
-            sum_row.append(str(round(data_sum["total"], 2)))
+            sum_row.append(str(self.moneyfmt(data_sum["subtotal"])))
+            sum_row.append(str(self.moneyfmt(data_sum["total"])))
             sum_row.append("")
 
-            report.append(self.args.delimiter.join(sum_row))
+            report.append(self.report_args["csv_delimiter"].join(sum_row))
 
             report.append("")
 

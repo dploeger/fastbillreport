@@ -137,6 +137,8 @@ if __name__ == '__main__':
 
         parser.print_help()
 
+        exit(1)
+
     # Connect to fastbill
 
     client = FastbillWrapper(args.user, args.key, args.api)

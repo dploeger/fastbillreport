@@ -1,5 +1,9 @@
 """ Short description """
 
+from datetime import date
+import re
+from decimal import Decimal
+
 
 class Report(object):
 
@@ -26,12 +30,36 @@ class Report(object):
 
     # Does this report need special arguments from the command line?
 
+    report_args = {}
+
+    # Report-Arguments
+
+    want_scope = False
+
+    # Does this report want "scope"-arguments?
+
+    want_csv = False
+
+    # Does this report want "csv" arguments?
+
     def get_args(self, parser):
 
         """
         Fill an argparse Subparser with arguments needed for this report
+
+        The superclass method also reacts to want_scope and want_csv and
+        automatically adds these parameters to the argument parser.
+
         :param parser: The argparse subparser
         """
+
+        if self.want_csv:
+
+            self.get_args_csv(parser)
+
+        if self.want_scope:
+
+            self.get_args_scope(parser)
 
         pass
 
@@ -40,9 +68,27 @@ class Report(object):
         """
         Check the args for sanity. Individual reports should call the super
         method or set self.args=args
+
+        The superclass method also checks for scope and csv arguments,
+        if needed.
+
+        These arguments are afterwards available in self.report_args.
+
         :param args: Arguments parsed
         :return: Wether the arguments are sane
         """
+
+        if self.want_csv:
+
+            if not self.parse_args_csv(args):
+
+                return False
+
+        if self.want_scope:
+
+            if not self.parse_args_scope(args):
+
+                return False
 
         self.args = args
 
@@ -55,4 +101,221 @@ class Report(object):
         :return: The report as a string
         """
 
-        ""
+        pass
+
+    def get_args_scope(self, parser):
+
+        """
+        Helper for the "scope"-argument component
+
+        Adds self.report_args["scope"] and ["scope_value"], if the arguments
+        can be parsed.
+        """
+
+        parser.add_argument(
+            "-s",
+            "--scope",
+            dest="scope",
+            default="month",
+            help="Scope for the report (month, quarter, year)"
+        )
+
+        parser.add_argument(
+            "-d",
+            "--scopevalue",
+            dest="scopevalue",
+            default="_now",
+            help="Value of scope (for example 20149, 20142, 2014"
+                 "for month/quarter/year scopes)"
+        )
+
+    def get_args_csv(self, parser):
+
+        """
+        Helper for the CSV-argument component. Adds self.report_args[
+        "csv_delimiter"] once parsed.
+
+        :param parser:
+        :return:
+        """
+
+        parser.add_argument(
+            "-e",
+            "--delimiter",
+            dest="delimiter",
+            default=",",
+            help="CSV-Delimiter for report output"
+        )
+
+    def parse_args_scope(self, args):
+
+        """
+        Sanity check for scope arguments
+
+        :param args:
+        :return:
+        """
+
+        if args.scope not in ["month", "quarter", "year"]:
+
+            self.logger.error("Invalid scope specified (%s)" % args.scope)
+
+            return False
+
+        else:
+
+            self.report_args["scope"] = args.scope
+
+        if args.scopevalue == "_now":
+
+            # Generate the current date
+
+            now = date.today()
+
+            if self.report_args["scope"] == "month":
+
+                self.report_args["scope_value"] = "%d%d" % (now.year, now.month)
+
+            elif self.report_args["scope"] == "quarter":
+
+                self.report_args["scope_value"] = "%d%d" % (
+                    now.year,
+                    int(now.month/4) + 1
+                )
+
+            else:
+
+                self.report_args["scope_value"] = str(now.year)
+
+        else:
+
+            if (
+                self.report_args["scope"] == "month" and
+                    not re.match("^[\d]{5,6}$", args.scopevalue)
+            ) or (
+                self.report_args["scope"] == "quarter" and
+                    not re.match("^[\d]{5}$", args.scopevalue)
+            ) or (
+                self.report_args["scope"] == "year" and
+                    not re.match("^[\d]{4}$", args.scopevalue)
+            ):
+
+                self.logger.error(
+                    "Invalid scope value specified (%s) for "
+                    "scope (%s)" % (
+                        args.scopevalue,
+                        self.report_args["scope"]
+                    )
+                )
+
+                return False
+
+            else:
+
+                self.report_args["scope_value"] = args.scopevalue
+
+        return True
+
+    def parse_args_csv(self, args):
+
+        """
+        Sanity check for csv arguments
+
+        :param args:
+        :return:
+        """
+
+        self.report_args["csv_delimiter"] = args.delimiter
+
+        return True
+
+    def get_scope_filters(self):
+
+        """
+        Calculate the scope filters for the API based on the given scope
+        arguments
+
+        :return:
+        """
+
+        scope_filters = []
+
+        if self.report_args["scope"] == "year":
+
+            scope_filters.append({"YEAR": self.report_args["scope_value"]})
+
+        elif self.report_args["scope"] == "month":
+
+            interpreted_scope = re.match("^([\d]{4})([\d]*)$", self.report_args["scope_value"])
+
+            scope_filters.append({
+                "YEAR": interpreted_scope.group(1),
+                "MONTH": interpreted_scope.group(2)
+            })
+
+        elif self.report_args["scope"] == "quarter":
+
+            interpreted_scope = re.match("^([\d]{4})([\d])$", self.report_args["scope_value"])
+
+            month_start = (int(interpreted_scope.group(2)) - 1) * 3 + 1
+            month_end = (int(interpreted_scope.group(2))) * 3 + 1
+
+            for month in range(month_start, month_end):
+
+                scope_filters.append({
+                    "YEAR": interpreted_scope.group(1),
+                    "MONTH": str(month)
+                })
+
+        return scope_filters
+
+    def moneyfmt(self, value, places=2, curr='', sep=',', dp='.',
+                 pos='', neg='-', trailneg=''):
+        """Convert Decimal to a money formatted string.
+
+        places:  required number of places after the decimal point
+        curr:    optional currency symbol before the sign (may be blank)
+        sep:     optional grouping separator (comma, period, space, or blank)
+        dp:      decimal point indicator (comma or period)
+                 only specify as blank when places is zero
+        pos:     optional sign for positive numbers: '+', space or blank
+        neg:     optional sign for negative numbers: '-', '(', space or blank
+        trailneg:optional trailing minus indicator:  '-', ')', space or blank
+
+        >>> d = Decimal('-1234567.8901')
+        >>> moneyfmt(d, curr='$')
+        '-$1,234,567.89'
+        >>> moneyfmt(d, places=0, sep='.', dp='', neg='', trailneg='-')
+        '1.234.568-'
+        >>> moneyfmt(d, curr='$', neg='(', trailneg=')')
+        '($1,234,567.89)'
+        >>> moneyfmt(Decimal(123456789), sep=' ')
+        '123 456 789.00'
+        >>> moneyfmt(Decimal('-0.02'), neg='<', trailneg='>')
+        '<0.02>'
+
+        """
+        value = Decimal(value)
+
+        q = Decimal(10) ** -places      # 2 places --> '0.01'
+        sign, digits, exp = value.quantize(q).as_tuple()
+        result = []
+        digits = map(str, digits)
+        build, next = result.append, digits.pop
+        if sign:
+            build(trailneg)
+        for i in range(places):
+            build(next() if digits else '0')
+        build(dp)
+        if not digits:
+            build('0')
+        i = 0
+        while digits:
+            build(next())
+            i += 1
+            if i == 3 and digits:
+                i = 0
+                build(sep)
+        build(curr)
+        build(neg if sign else pos)
+        return ''.join(reversed(result))
