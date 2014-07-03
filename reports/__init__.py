@@ -246,7 +246,10 @@ class Report(object):
 
         elif self.report_args["scope"] == "month":
 
-            interpreted_scope = re.match("^([\d]{4})([\d]*)$", self.report_args["scope_value"])
+            interpreted_scope = re.match(
+                "^([\d]{4})([\d]*)$",
+                self.report_args["scope_value"]
+            )
 
             scope_filters.append({
                 "YEAR": interpreted_scope.group(1),
@@ -255,7 +258,10 @@ class Report(object):
 
         elif self.report_args["scope"] == "quarter":
 
-            interpreted_scope = re.match("^([\d]{4})([\d])$", self.report_args["scope_value"])
+            interpreted_scope = re.match(
+                "^([\d]{4})([\d])$",
+                self.report_args["scope_value"]
+            )
 
             month_start = (int(interpreted_scope.group(2)) - 1) * 3 + 1
             month_end = (int(interpreted_scope.group(2))) * 3 + 1
@@ -271,6 +277,7 @@ class Report(object):
 
     def moneyfmt(self, value, places=2, curr='', sep=',', dp='.',
                  pos='', neg='-', trailneg=''):
+
         """Convert Decimal to a money formatted string.
 
         places:  required number of places after the decimal point
@@ -281,19 +288,6 @@ class Report(object):
         pos:     optional sign for positive numbers: '+', space or blank
         neg:     optional sign for negative numbers: '-', '(', space or blank
         trailneg:optional trailing minus indicator:  '-', ')', space or blank
-
-        >>> d = Decimal('-1234567.8901')
-        >>> moneyfmt(d, curr='$')
-        '-$1,234,567.89'
-        >>> moneyfmt(d, places=0, sep='.', dp='', neg='', trailneg='-')
-        '1.234.568-'
-        >>> moneyfmt(d, curr='$', neg='(', trailneg=')')
-        '($1,234,567.89)'
-        >>> moneyfmt(Decimal(123456789), sep=' ')
-        '123 456 789.00'
-        >>> moneyfmt(Decimal('-0.02'), neg='<', trailneg='>')
-        '<0.02>'
-
         """
         value = Decimal(value)
 

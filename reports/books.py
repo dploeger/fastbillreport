@@ -2,7 +2,6 @@
 """
 
 from reports import Report
-import re
 
 
 class Books(Report):
