@@ -41,7 +41,7 @@ Run fastbillreport.py with --help to display an argument help.
 A typical command would contain the following arguments
 
 python python-fastbill.py -u <User> -k <key> <report> -s <scope> -d 
-<scope-value>
+<scope-value> <report-name>
 
 * -u: User of fastbill
 * -k: API-key
