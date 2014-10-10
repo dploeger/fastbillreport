@@ -4,6 +4,7 @@ A financial report generator out of Fastbill income and expenses as a basis for
 monthly/quarterly/yearly reports, the german USTvA report and the german EueR
 
 """
+import gettext
 
 from fastbill import FastbillWrapper
 from argparse import ArgumentParser
@@ -94,6 +95,15 @@ if __name__ == '__main__':
         help="Verbose mode"
     )
 
+    parser.add_argument(
+        "-l",
+        "--lang",
+        dest="lang",
+        help="Language to use. See the files in 'lang' for possible values. ["
+             "en]",
+        default="en"
+    )
+
     # Add subparsers for reports
 
     subparser = parser.add_subparsers(
@@ -139,6 +149,13 @@ if __name__ == '__main__':
 
         exit(1)
 
+    # Set up translation
+
+    translation = gettext.translation("fastbillreport", "lang/",
+                                      languages=[args.lang])
+
+    translation.install()
+
     # Connect to fastbill
 
     client = FastbillWrapper(args.user, args.key, args.api)
@@ -147,4 +164,4 @@ if __name__ == '__main__':
 
     # Start report
 
-    print os.linesep.join(loaded_reports[args.report].report())
+    print os.linesep.join(loaded_reports[args.report].report()).encode("utf-8")

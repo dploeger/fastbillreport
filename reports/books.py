@@ -15,6 +15,33 @@ class Books(Report):
 
     want_scope = True
 
+    def get_args(self, parser):
+        
+        super(Books, self).get_args(parser)
+
+        parser.add_argument(
+            "-c",
+            "--combine",
+            dest="combine",
+            action="store_true",
+            help="Combine expenses and income in one report"
+        )
+
+        parser.add_argument(
+            "--sort",
+            dest="sort",
+            default="date",
+            help="Key to sort report (date, paid_date, name, title, subtotal, "
+                 "total or a VAT value like 19.00) [date]"
+        )
+
+        parser.add_argument(
+            "--reverse",
+            dest="reverse",
+            action="store_true",
+            help="Reverse sort?"
+        )
+
     def report(self):
 
         # Create scope filter
@@ -114,25 +141,47 @@ class Books(Report):
 
         report = []
 
-        report_data = {
-            "INCOME": {
-                "data": incomes,
-                "vats": income_vats
-            },
-            "EXPENSES": {
-                "data": expenses,
-                "vats": expense_vats
+        if self.args.combine:
+
+            combined = incomes + expenses
+
+            combined.sort(key=lambda sort_row: sort_row[self.args.sort],
+                          reverse=self.args.reverse)
+
+            report_data = {
+                "INCOME/EXPENSES": {
+                    "data": combined,
+                    "vats": list(set(income_vats + expense_vats))
+                }
             }
-        }
+
+        else:
+
+            incomes.sort(key=lambda sort_row: sort_row[self.args.sort],
+                         reverse=self.args.reverse)
+
+            expenses.sort(key=lambda sort_row: sort_row[self.args.sort],
+                          reverse=self.args.reverse)
+
+            report_data = {
+                "INCOME": {
+                    "data": incomes,
+                    "vats": income_vats
+                },
+                "EXPENSES": {
+                    "data": expenses,
+                    "vats": expense_vats
+                }
+            }
 
         for key, data in report_data.iteritems():
 
             report.append(key)
 
             header = self.report_args["csv_delimiter"].join(
-                ["date", "paid_date", "name", "title"] +
+                [_("date"), _("paid_date"), _("name"), _("title")] +
                 data["vats"] +
-                ["subtotal", "total", "note"]
+                [_("subtotal"), _("total"), _("note")]
             )
 
             report.append(header)
