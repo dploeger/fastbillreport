@@ -149,7 +149,7 @@ class Books(Report):
                           reverse=self.args.reverse)
 
             report_data = {
-                "INCOME/EXPENSES": {
+                _("INCOME/EXPENSES"): {
                     "data": combined,
                     "vats": list(set(income_vats + expense_vats))
                 }
@@ -164,11 +164,11 @@ class Books(Report):
                           reverse=self.args.reverse)
 
             report_data = {
-                "INCOME": {
+                _("INCOME"): {
                     "data": incomes,
                     "vats": income_vats
                 },
-                "EXPENSES": {
+                _("EXPENSES"): {
                     "data": expenses,
                     "vats": expense_vats
                 }
