@@ -158,7 +158,7 @@ if __name__ == '__main__':
 
     # Connect to fastbill
 
-    client = FastbillWrapper(args.user, args.key, args.api)
+    client = FastbillWrapper(args.user, args.key, service_url=args.api)
 
     loaded_reports[args.report].client = client
 
