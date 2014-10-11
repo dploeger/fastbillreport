@@ -31,7 +31,7 @@ from a given scope
 ## Prerequisites
 
 * [Python 2.7][python]
-* [Python-Fastbill][python-fastbill]
+* [Python-Fastbill 0.5.1][python-fastbill]
 * A fastbill API key (get one on your Settings/Overview-page)
 
 ## Usage

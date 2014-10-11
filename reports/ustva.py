@@ -23,11 +23,11 @@ class Ustva(Report):
 
         ustva = {
 
-            # 81 - Steuerpflichtige Umsaetze - 19%
+            # 81 - Steuerpflichtige Umsaetze - 19% (Bemessungsgrundlage, Volle Euro)
 
             "81": 0,
 
-            # 86 - Steuerpflichtige Umsaetze - 7%
+            # 86 - Steuerpflichtige Umsaetze - 7% (Bemessungsgrundlage, Volle Euro)
 
             "86": 0,
 
@@ -58,18 +58,15 @@ class Ustva(Report):
 
                     continue
 
-                vat_sum = {
-                    "19.00": 0,
-                    "7.00": 0
-                }
-
                 for vat_item in invoice["VAT_ITEMS"]:
 
-                    vat_sum[vat_item["VAT_PERCENT"]] += float(vat_item[
-                        "VAT_VALUE"])
+                    if vat_item["VAT_PERCENT"] == "19.00":
 
-                ustva["81"] += vat_sum["19.00"]
-                ustva["86"] += vat_sum["7.00"]
+                        ustva["81"] += float(vat_item["COMPLETE_NET"])
+
+                    elif vat_item["VAT_PERCENT"] == "7.00":
+
+                        ustva["86"] += float(vat_item["COMPLETE_NET"])
 
             tmp = self.client.expense_get(filter=scope_filter)
 
@@ -79,7 +76,10 @@ class Ustva(Report):
 
                     ustva["66"] += float(vat_item["VAT_VALUE"])
 
-        ustva["83"] = ustva["81"] + ustva["86"] - ustva["66"]
+        ustva["81"] = int(ustva["81"])
+        ustva["86"] = int(ustva["86"])
+
+        ustva["83"] = (ustva["81"] * 0.19) + (ustva["86"] * 0.07) - ustva["66"]
 
         report = ["UstVa-Bericht"]
 
