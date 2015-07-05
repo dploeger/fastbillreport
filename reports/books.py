@@ -200,7 +200,7 @@ class Books(Report):
                     row["title"]
                 ]
 
-                for vat in income_vats:
+                for vat in data["vats"]:
 
                     if not vat in data_sum:
                         data_sum[vat] = 0
@@ -208,16 +208,16 @@ class Books(Report):
                     if vat in row["vat"]:
 
                         data_sum[vat] += row["vat"][vat]
-                        columns.append(str(self.moneyfmt(row["vat"][vat])))
+                        columns.append(str(self.moneyfmt(float(row["vat"][vat]))))
 
                     else:
 
                         columns.append("0")
 
-                columns.append(str(self.moneyfmt(row["subtotal"])))
+                columns.append(str(self.moneyfmt(float(row["subtotal"]))))
                 data_sum["subtotal"] += row["subtotal"]
-                columns.append(str(self.moneyfmt(row["total"])))
-                data_sum["total"] += row["total"]
+                columns.append(str(self.moneyfmt(float(row["total"]))))
+                data_sum["total"] += float(row["total"])
                 columns.append(row["note"])
 
                 report.append(self.report_args["csv_delimiter"].join(columns))
@@ -231,10 +231,12 @@ class Books(Report):
 
             for vat in data["vats"]:
 
-                sum_row.append(str(self.moneyfmt(data_sum[vat])))
+                if vat in data_sum:
 
-            sum_row.append(str(self.moneyfmt(data_sum["subtotal"])))
-            sum_row.append(str(self.moneyfmt(data_sum["total"])))
+                    sum_row.append(str(self.moneyfmt(float(data_sum[vat]))))
+
+            sum_row.append(str(self.moneyfmt(float(data_sum["subtotal"]))))
+            sum_row.append(str(self.moneyfmt(float(data_sum["total"]))))
             sum_row.append("")
 
             report.append(self.report_args["csv_delimiter"].join(sum_row))
