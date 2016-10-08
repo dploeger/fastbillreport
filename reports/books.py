@@ -63,6 +63,11 @@ class Books(Report):
 
             for invoice in tmp["INVOICES"]:
 
+                if invoice["PAID_DATE"] == "0000-00-00 00:00:00":
+                    # Skip unpaid invoices
+
+                    continue
+
                 if invoice["IS_CANCELED"] == "1":
 
                     # Skip canceled invoices
@@ -80,6 +85,8 @@ class Books(Report):
                 }
 
                 for vat_item in invoice["VAT_ITEMS"]:
+
+                    vat_item["VAT_PERCENT"] = str(round(float(vat_item["VAT_PERCENT"])))
 
                     if vat_item["VAT_PERCENT"] not in vat_sum:
 
@@ -111,6 +118,8 @@ class Books(Report):
                 }
 
                 for vat_item in expense["VAT_ITEMS"]:
+
+                    vat_item["VAT_PERCENT"] = str(round(float(vat_item["VAT_PERCENT"])))
 
                     if vat_item["VAT_PERCENT"] not in vat_sum:
 
